@@ -18,10 +18,11 @@ dsd version has a much greater capability, due to having an effective samplerate
 
 Usefull information in the making of this project:
 
-https://en.wikipedia.org/wiki/Composite_video
-https://en.wikipedia.org/wiki/Direct_Stream_Digital
+https://en.wikipedia.org/wiki/Composite_video  
+https://en.wikipedia.org/wiki/Direct_Stream_Digital  
+https://en.wikipedia.org/wiki/PAL
+http://martin.hinner.info/vga/pal.html
 
-
-https://en.wikipedia.org/wiki/Component_video
-https://en.wikipedia.org/wiki/YPbPr
+https://en.wikipedia.org/wiki/Component_video  
+https://en.wikipedia.org/wiki/YPbPr  
 (component version coming soon?)
