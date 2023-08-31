@@ -1,0 +1,75 @@
+desc:Audio TV
+
+in_pin:left input
+in_pin:right input
+out_pin:left output
+out_pin:right output
+
+@init
+toggle = 1;
+commonSrate = 24000000;
+desiredSrate = 500000;
+invdesired = 1/ desiredSrate;
+upsampling = commonSrate / srate; // ensure that this value is integer 
+invupsampling = srate / commonSrate;
+downsampling = commonSrate / desiredSrate;
+
+position = 0;
+
+out = -1;
+pimult = $pi*6;
+inv305 = 1/305;
+
+invhpos = 1 / (32-2);
+
+scale = 1/upsampling * 0.3;
+
+inv32 = 1/32;
+
+togglefreq = 2*$pi/srate*0.5;
+
+function display() (
+  toggle * 0.15 * cos(pimult*sqrt((hpos*hpos + vpos*vpos)));
+  //0;
+);
+
+function upsampled_code()
+(
+  position = (position+1) % downsampling;
+  wrapped = position * invupsampling;
+  position == 0 ? (
+    int = (int+1) % 20000; // 625*32
+    int == 0 ?
+    toggle = sin(togglefreq*c);
+    hcount = 0|(int * inv32);
+    hblank = int % 32;
+    hblank == 0 
+      || (hblank == 1 && 4 <= hcount && hcount < 309)
+      || (hblank == 1 && 317 <= hcount && hcount < 622)
+      || ((hcount < 315 && (hcount < 2 || hcount > 312) ) && hblank != 15 && hblank != 31)
+      || (hcount == 2 && hblank < 15)
+      || (hcount == 312 && hblank > 15 && hblank != 31) ? out = -1 : out = 0;
+  );
+  5 <= hcount && hcount < 310 && (2 <= hblank) ? (
+    hpos = (wrapped + (hblank - 2)) * invhpos - 0.5;
+    vpos = (hcount - 5.5) * inv305 - 0.5;
+    out = 0.4 + display();
+  );
+  317 <= hcount && hcount < 622 && (2 <= hblank) ? (
+    hpos = (wrapped + (hblank - 2)) * invhpos - 0.5;
+    vpos = (hcount - 316.5) * inv305 - 0.5;
+    out = 0.4 + display();
+  );
+)
+
+@sample
+
+total = 0;
+loop(upsampling,
+  upsampled_code();
+  total += out;
+  samp_i += 1;
+);
+
+spl0 = spl1 = total*scale;
+c += 1;
