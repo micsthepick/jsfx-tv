@@ -16,31 +16,26 @@ commonSrate = 176400*16;
 desiredSrate = 500000;
 invdesired = 1/desiredSrate;
 upsampling = commonSrate / srate; // ensure that this value is integer 
-downsampling = commonSrate / desiredSrate;
+downsampling = commonSrate / desiredSrate; // this really ought to be close to an integer, but we can deal with it
 invdown = desiredSrate / commonSrate;
 invup = srate / commonSrate;
-sixpi = 2*$pi;
 
-omdelta = 1-delta;
-
-position = 0;
-
-out = -1;
+// graphics specific definitions/constants
 pimult = $pi*2;
-inv305 = 1/305;
-
-invhpos = 1 / (32-3);
-
-inv32 = 1/32;
-
 togglefreq = 2*$pi/srate*0.5;
 
+// other constants (performance matters here!)
+inv305 = 1/305;
+invhpos = 1 / (32-3);
+inv32 = 1/32;
 
+// actual function to display graphics for each rendered sample in each line
 function display() (
   toggle * 0.01 * cos(pimult*sqrt((hpos*hpos + vpos*vpos)));
   //0;
 );
 
+// run this for every DSD sample
 function upsampled_code()
 (
   position = (position + 1) % 8820000000; // commonsrate  * invdown
@@ -76,16 +71,23 @@ function upsampled_code()
   ret = out > 0.5
 )
 
+@slider
+omdelta = 1-delta;
+
 @sample
 
+// upsample to DSD frequency
 total = 0;
 avg = 0;
 loop(upsampling,
+  // generate a bit
   upsampled_code();
+  // accumulate bit in total (MSB should be oldest bit)
   total *= 2;
   total += ret;
 );
 
+// toggle marker (8 MSB of 24 bits) between 05 and FA, like in https://dsd-guide.com/sites/default/files/white-papers/DoP_openStandard_1v1.pdf
 marker != 0x050000 ? marker = 0x050000 : marker = 0xFA0000;
 
 total = total | marker;
