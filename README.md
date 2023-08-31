@@ -1,6 +1,6 @@
 # jsfx-tv
 
-Play Composite B&W patterns out of your pc's soundcard!
+Play Composite B&W patterns out of your pc's soundcard! *(Designed and tested on PAL components, NTSC can be prepared on request?)
 
 ## setup:
 Copy files to \<REAPER install dir\>/Effects
@@ -15,3 +15,13 @@ some theoretical stuff:
 max amount of samples per line in non-dsd version is about 6-7
 
 dsd version has a much greater capability, due to having an effective samplerate in MHz but will require some tuning to get it to display properly, and some further development to get patterns to display properly
+
+Usefull information in the making of this project:
+
+https://en.wikipedia.org/wiki/Composite_video
+https://en.wikipedia.org/wiki/Direct_Stream_Digital
+
+
+https://en.wikipedia.org/wiki/Component_video
+https://en.wikipedia.org/wiki/YPbPr
+(component version coming soon?)
