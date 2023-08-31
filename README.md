@@ -1,11 +1,11 @@
 # jsfx-tv
 
+Play Composite B&W patterns out of your pc's soundcard! *(Designed and tested on PAL components, NTSC can be prepared on request?)
+
 ## DISCLAIMER:
 I bear no responsibility with how you use this code. If you break a TV or start a fire, due to improper use, don't blame me.
 I have not verified all the possible signal strengths that are generated nor do I own a scope. Most assuredly, you should not use an amplifier unless you can verify that you won't overvolt the TV.  
 Even then, DACs can produce much more than 1V by design, so it may make sense to use a resistor, but I am by no means an Electrial Engineer.
-
-Play Composite B&W patterns out of your pc's soundcard! *(Designed and tested on PAL components, NTSC can be prepared on request?)
 
 ## setup:
 Copy files to \<REAPER install dir\>/Effects
