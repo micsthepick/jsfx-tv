@@ -15,13 +15,13 @@ Configure to use WASAPI/ASIO/lossless:
 connect your pc to the RCA port (yellow) of the TV with a typical stereo 3.5 to RCA cable
 ensure that the TV is tuned to the correct RCA port
 
-some theoretical stuff:
+## some theoretical stuff:
 
 max amount of samples per line in non-dsd version is about 6-7
 
 dsd version has a much greater capability, due to having an effective samplerate in MHz but will require some tuning to get it to display properly, and some further development to get patterns to display properly
 
-Usefull information in the making of this project:
+## Useful information in the making of this project:
 
 https://en.wikipedia.org/wiki/Composite_video  
 https://en.wikipedia.org/wiki/Direct_Stream_Digital  
