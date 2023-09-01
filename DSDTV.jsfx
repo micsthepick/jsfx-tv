@@ -5,7 +5,9 @@ in_pin:right input
 out_pin:left output
 out_pin:right output
 
-slider1:delta=0.82<0.7,0.9,0.001>delta
+slider1:delta=0.82<0.0001,0.9999,0.0001>delta
+
+//import elliptic-lp.jsfx-inc
 
 @init
 marker = 0x050000;
@@ -21,7 +23,7 @@ invdown = desiredSrate / commonSrate;
 invup = srate / commonSrate;
 
 // graphics specific definitions/constants
-pimult = $pi*2;
+pimult = $pi*4;
 togglefreq = 2*$pi/srate*0.5;
 
 // other constants (performance matters here!)
@@ -31,7 +33,7 @@ inv32 = 1/32;
 
 // actual function to display graphics for each rendered sample in each line
 function display() (
-  toggle * 0.1 * cos(pimult*sqrt((hpos*hpos + vpos*vpos)));
+  toggle * 0.2 * cos(pimult*sqrt((hpos*hpos + vpos*vpos)));
   //0;
 );
 
@@ -51,6 +53,7 @@ function upsampled_code()
   // when we go to the next sample in desired srate, and need to update blanking
   (fractional|0) - (prev|0) ? (
     int = (int+1) % 20000; // 312*32
+    int == 0 ? toggle = sin(togglefreq*c);
     // count of complete horizontal lines
     hcount = 0|(int * inv32);
     // position in horizontal line
@@ -78,15 +81,16 @@ function upsampled_code()
     vpos = (hcount - 316.5) * inv305 - 0.5;
     out_unf = 0.2 + display();
   );
-  avg += out_unf;
-  out_unf_1 = (1+out_unf)*0.5;
-  v1 = out_unf_1 - ret;
-  out = out * delta + v1 * omdelta;
-  ret = out > 0.5
+  //avg += out_unf;
+  sum  += out_unf*0.5 - quant;
+  out = omdelta*sum + delta*out;
+  ret = out > 0;
+  quant = 2*ret-1;
 )
 
 @slider
 omdelta = 1-delta;
+//elp.ellipticLP_set(delta);
 
 @sample
 
