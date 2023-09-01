@@ -5,7 +5,8 @@ in_pin:right input
 out_pin:left output
 out_pin:right output
 
-slider1:delta=0.82<0.0001,0.9999,0.0001>delta
+slider1:delta=0.9<0.5,0.99,0.0001>delta
+slider2:amp=0.5<0,1,0.001>Amplitude (unity)
 
 //import elliptic-lp.jsfx-inc
 
@@ -23,10 +24,12 @@ invdown = desiredSrate / commonSrate;
 invup = srate / commonSrate;
 
 samplesPerDoubleFrame = commonSrate / 25;
+invsamplesPerDoubleFrame = 25 / commonSrate;
 samplesPerFrame = samplesPerDoubleFrame * 0.5;
+invsamplesPerFrame = 1 / samplesPerFrame;
 
 // graphics specific definitions/constants
-pimult = $pi*4;
+pimult = $pi*2;
 togglefreq = 2*$pi/srate*0.25;
 
 // other constants (performance matters here!)
@@ -34,62 +37,78 @@ inv305 = 1/305;
 invhpos = 1 / (128-6);
 inv128 = 1/128;
 
+// syncing fractions
+hs = 470/6400;
+fp = 1200/6400;
+bp = 6235/6400;
+
+
+hm = 6400/(6400-470);
+
+s1 = 23/640;
+s2 = 273/640;
+s3 = 320/640;
+s4 = 343/640;
+s5 = 593/640;
+
 // actual function to display graphics for each rendered sample in each line
 function display() (
   //0.2 * cos(pimult*(sqrt((hpos*hpos + vpos*vpos))+togglefreq*c));
-  sin(pimult*hpos) * sin(pimult*vpos);
-  0;
+  //sin(pimult*hpos) * sin(pimult*vpos);
+  -1;
 );
 
 // run this for every DSD sample
 function upsampled_code()
 (
-  // position wrapping every second
-  position = (position + 1) % commonSrate;
-  // wrapped position in frame (seconds/50)
-  position1 = position % samplesPerDoubleFrame;
-  position2 = position1 % samplesPerFrame;
-  position2 == 0 ? toggle = sin(togglefreq*c);
-    // count of complete horizontal lines
-    hcount = 0|(int * inv128);
-    // position in horizontal line
-    hblank = int % 128;
-    // always sync at the start of a line
-    hblank <= 5
-      // longer sync for video frames
-      || (hblank < 9 && 5 <= hcount && hcount < 310)
-      || (hblank < 9 && 317 <= hcount && hcount < 622)
-      // vsync
-      // first two sync lines of both fields
-      || ((hcount < 315 && (hcount < 2 || hcount > 312) ) && ((hblank <= 64 && hblank < 124) || hblank < 60))
-      // third sync line
-      || (hcount == 2 && hblank < 60)
-      // 313 sync line
-      || (hcount == 312 && hblank <= 64 && hblank < 124) ? out_unf = -1 : out_unf = -0.35;
-  );
+  // wrapped position in frames
+  position = (position + 1) % samplesPerDoubleFrame;
+  position == 0 ? (toggle = sin(togglefreq*c););
+  fraction = position * 625 * invsamplesPerDoubleFrame;
+  lineNo = fraction|0;
+  lineFrac = fraction-lineNo;
+  // horizontal sync at the start of a line
+  lineFrac <= s1
+  // middle of line for non video frames
+  || (s3 < lineFrac && lineFrac < s4 && 
+    ((309 < lineNo && lineNo < 317) || lineNo < 5 || lineNo > 621)
+  )
+  // longer sync for video frames
+  || (lineFrac < hs && 4 < lineNo && lineNo < 310)
+  || (lineFrac < hs && 316 < lineNo && lineNo < 622)
+  // vsync
+  // lines of both fields with a double pulse
+  || (
+    (lineNo < 315 && (lineNo < 2 || lineNo > 312))
+    && ((s3 < lineFrac && lineFrac < s5) || lineFrac < s2)
+  )
+  // third sync line
+  || (lineNo == 2 && lineFrac < s2)
+  // 313 sync line
+  || (lineNo == 312 && s3 < lineFrac && lineFrac < s5)
+  ? raw_out = -0.3 : raw_out = 0;
+
   // calculate graphics, when in the right place
-  // first field (305 out of 312 lines)
-  5 <= hcount && hcount < 310 && (26 <= hblank && hblank < 127) ? (
-    hpos = (wrapped + (hblank - 4)) * invhpos - 0.5;
-    vpos = (hcount - 5.5) * inv305 - 0.5;
-    out_unf = 0.2 + 0.4 * display();
+  // first field (of 312 lines)
+  22 <= lineNo && lineNo < 310 && (fp <= lineFrac && lineFrac < bp) ? (
+    hpos = (lineFrac - hs) * hm - 0.5;
+    vpos = (lineNo - 23) * inv305 - 0.5;
+    raw_out = 0.4 + 0.3 * display();
   );
-  // second field (305 out of 313 lines)
-  317 <= hcount && hcount < 622 && (26 <= hblank && hblank < 127) ? (
-    hpos = (wrapped + (hblank - 4)) * invhpos - 0.5;
-    vpos = (hcount - 316.5) * inv305 - 0.5;
-    out_unf = -0.7 + 0.4 * display();
+  // second field (of 313 lines)
+  334 <= lineNo && lineNo < 622 && (fp <= lineFrac && lineFrac < bp) ? (
+    hpos = (lineFrac - hs) * hm - 0.5;
+    vpos = (lineNo - 336) * inv305 - 0.5;
+    raw_out = 0.4 + 0.3 * display();
   );
-  //avg += out_unf;
-  sum  += out_unf*0.5 - quant;
+  sum += raw_out*amp - quant;
   out = omdelta*sum + delta*out;
   ret = out > 0;
   quant = 2*ret-1;
-)
+);
 
 @slider
 omdelta = 1-delta;
-//elp.ellipticLP_set(delta);
 
 @sample
 
@@ -113,3 +132,4 @@ total&0x800000 ? total = -1-(total~0xffffff);
 
 spl0 = spl1 = total * invmult;
 c += 1;
+
