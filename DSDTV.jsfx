@@ -5,8 +5,12 @@ in_pin:right input
 out_pin:left output
 out_pin:right output
 
-slider1:delta=0.9<0.5,0.99,0.0001>delta
-slider2:amp=0.5<0,1,0.001>Amplitude (unity)
+slider1:delta=0.6<0.25,0.99,0.0001>delta
+slider2:amp=1<0,1,0.001>Amplitude (unity)
+slider3:0.3<0,1,0.0001>Brightness
+slider4:0.3<0,1,0.0001>Contrast
+slider5:-0.7<-0.9,-0.25,0.001>Sync level
+slider6:0<0,9,1>Pattern
 
 //import elliptic-lp.jsfx-inc
 
@@ -29,7 +33,7 @@ samplesPerFrame = samplesPerDoubleFrame * 0.5;
 invsamplesPerFrame = 1 / samplesPerFrame;
 
 // graphics specific definitions/constants
-pimult = $pi*2;
+pimult = $pi*4;
 togglefreq = 2*$pi/srate*0.25;
 
 // other constants (performance matters here!)
@@ -43,7 +47,7 @@ fp = 1200/6400;
 bp = 6235/6400;
 
 
-hm = 6400/(6400-470);
+hm = 1/(bp-fp);
 
 s1 = 23/640;
 s2 = 273/640;
@@ -52,10 +56,16 @@ s4 = 343/640;
 s5 = 593/640;
 
 // actual function to display graphics for each rendered sample in each line
+// output is typically between -1 and 1
 function display() (
-  //0.2 * cos(pimult*(sqrt((hpos*hpos + vpos*vpos))+togglefreq*c));
-  //sin(pimult*hpos) * sin(pimult*vpos);
-  -1;
+  slider6 == 1 ? cos(pimult*(sqrt((hpos*hpos + vpos*vpos))))
+  : slider6 == 2 ? cos(pimult*(sqrt((hpos*hpos + vpos*vpos))+togglefreq*c))
+  : slider6 == 3 ? sin(pimult*hpos) * sin(pimult*vpos)
+  : slider6 == 4 ? toggle * sin(pimult*hpos) * sin(pimult*vpos)
+  : slider6 == 5 ? sin(pimult*(hpos+toggle)) * sin(pimult*(vpos+toggle))
+  : slider6 == 6 ? sin(pimult*hpos*toggle) * sin(pimult*vpos*toggle)
+  : slider6 == 7 ? toggle
+  : 0;
 );
 
 // run this for every DSD sample
@@ -86,20 +96,21 @@ function upsampled_code()
   || (lineNo == 2 && lineFrac < s2)
   // 313 sync line
   || (lineNo == 312 && s3 < lineFrac && lineFrac < s5)
-  ? raw_out = -0.3 : raw_out = 0;
+  ? raw_out = slider5 : raw_out = 0;
 
   // calculate graphics, when in the right place
   // first field (of 312 lines)
   22 <= lineNo && lineNo < 310 && (fp <= lineFrac && lineFrac < bp) ? (
-    hpos = (lineFrac - hs) * hm - 0.5;
+    hpos = (lineFrac - fp) * hm - 0.5;
+    m = max(hpos, m);
     vpos = (lineNo - 23) * inv305 - 0.5;
-    raw_out = 0.4 + 0.3 * display();
+    raw_out = min(0.69, max(0.01, bright + cont * display()));
   );
   // second field (of 313 lines)
   334 <= lineNo && lineNo < 622 && (fp <= lineFrac && lineFrac < bp) ? (
-    hpos = (lineFrac - hs) * hm - 0.5;
+    hpos = (lineFrac - fp) * hm - 0.5;
     vpos = (lineNo - 336) * inv305 - 0.5;
-    raw_out = 0.4 + 0.3 * display();
+    raw_out = min(0.69, max(0.01, bright + cont * display()));
   );
   sum += raw_out*amp - quant;
   out = omdelta*sum + delta*out;
@@ -109,6 +120,8 @@ function upsampled_code()
 
 @slider
 omdelta = 1-delta;
+bright = 0.5*slider3;
+cont = 0.5*slider4;
 
 @sample
 
