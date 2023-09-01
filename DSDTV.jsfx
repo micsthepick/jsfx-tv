@@ -38,27 +38,41 @@ function display() (
 // run this for every DSD sample
 function upsampled_code()
 (
-  position = (position + 1) % 8820000000; // commonsrate  * invdown
+  // increment position, wrap around once it reaches the LCM of desiredSrate and commonSrate
+  // TODO: magic number here!
+  position = (position + 1) % 8820000000;
+  // get last value of fractional
   prev = fractional;
+  // time in seconds (wrapped every position upsampled samples)
   fractional = position * invdown;
+  // wrapped represents the fraction of a sample in desired srate
   wrapped = fractional*invdesired;
   wrapped = wrapped-(0|wrapped);
+  // when we go to the next sample in desired srate, and need to update blanking
   (fractional|0) - (prev|0) ? (
     int = (int+1) % 20000; // 312*32
+    // count of complete horizontal lines
     hcount = 0|(int * inv32);
+    // position in horizontal line
     hblank = int % 32;
-    hblank == 0 
-      || (hblank == 1 && 4 <= hcount && hcount < 309)
+    // always sync at the start of a line
+    hblank == 0
+      // longer sync for video frames
+      || (hblank == 1 && 5 <= hcount && hcount < 310)
       || (hblank == 1 && 317 <= hcount && hcount < 622)
+      // vsync
       || ((hcount < 315 && (hcount < 2 || hcount > 312) ) && hblank != 15 && hblank != 31)
       || (hcount == 2 && hblank < 15)
       || (hcount == 312 && hblank > 15 && hblank != 31) ? out_unf = -1 : out_unf = -0.7;
   );
+  // calculate graphics, when in the right place
+  // first field (305 out of 312 lines)
   5 <= hcount && hcount < 310 && (3 <= hblank && hblank < 31) ? (
     hpos = (wrapped + (hblank - 3)) * invhpos - 0.5;
     vpos = (hcount - 5.5) * inv305 - 0.5;
     out_unf = 0.2 + display();
   );
+  // second field (305 out of 313 lines)
   317 <= hcount && hcount < 622 && (3 <= hblank && hblank < 31) ? (
     hpos = (wrapped + (hblank - 3)) * invhpos - 0.5;
     vpos = (hcount - 316.5) * inv305 - 0.5;
