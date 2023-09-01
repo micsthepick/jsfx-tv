@@ -56,12 +56,12 @@ function upsampled_code()
   5 <= hcount && hcount < 310 && (2 <= hblank) ? (
     hpos = (wrapped + (hblank - 2)) * invhpos - 0.5;
     vpos = (hcount - 5.5) * inv305 - 0.5;
-    out = 0.4 + display();
+    out = 0.2 + display();
   );
   317 <= hcount && hcount < 622 && (2 <= hblank) ? (
     hpos = (wrapped + (hblank - 2)) * invhpos - 0.5;
     vpos = (hcount - 316.5) * inv305 - 0.5;
-    out = 0.4 + display();
+    out = 0.2 + display();
   );
 )
 
