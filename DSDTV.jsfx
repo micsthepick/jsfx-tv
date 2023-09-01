@@ -15,71 +15,70 @@ mult = 2^23;
 invmult = 2^-23;
 toggle = 1;
 commonSrate = 176400*16;
-desiredSrate = 500000;
+desiredSrate = 2000000;
 invdesired = 1/desiredSrate;
 upsampling = commonSrate / srate; // ensure that this value is integer 
 downsampling = commonSrate / desiredSrate; // this really ought to be close to an integer, but we can deal with it
 invdown = desiredSrate / commonSrate;
 invup = srate / commonSrate;
 
+samplesPerDoubleFrame = commonSrate / 25;
+samplesPerFrame = samplesPerDoubleFrame * 0.5;
+
 // graphics specific definitions/constants
 pimult = $pi*4;
-togglefreq = 2*$pi/srate*0.5;
+togglefreq = 2*$pi/srate*0.25;
 
 // other constants (performance matters here!)
 inv305 = 1/305;
-invhpos = 1 / (32-3);
-inv32 = 1/32;
+invhpos = 1 / (128-6);
+inv128 = 1/128;
 
 // actual function to display graphics for each rendered sample in each line
 function display() (
-  toggle * 0.2 * cos(pimult*sqrt((hpos*hpos + vpos*vpos)));
-  //0;
+  //0.2 * cos(pimult*(sqrt((hpos*hpos + vpos*vpos))+togglefreq*c));
+  sin(pimult*hpos) * sin(pimult*vpos);
+  0;
 );
 
 // run this for every DSD sample
 function upsampled_code()
 (
-  // increment position, wrap around once it reaches the LCM of desiredSrate and commonSrate
-  // TODO: magic number here!
-  position = (position + 1) % 8820000000;
-  // get last value of fractional
-  prev = fractional;
-  // time in seconds (wrapped every position upsampled samples)
-  fractional = position * invdown;
-  // wrapped represents the fraction of a sample in desired srate
-  wrapped = fractional*invdesired;
-  wrapped = wrapped-(0|wrapped);
-  // when we go to the next sample in desired srate, and need to update blanking
-  (fractional|0) - (prev|0) ? (
-    int = (int+1) % 20000; // 312*32
-    int == 0 ? toggle = sin(togglefreq*c);
+  // position wrapping every second
+  position = (position + 1) % commonSrate;
+  // wrapped position in frame (seconds/50)
+  position1 = position % samplesPerDoubleFrame;
+  position2 = position1 % samplesPerFrame;
+  position2 == 0 ? toggle = sin(togglefreq*c);
     // count of complete horizontal lines
-    hcount = 0|(int * inv32);
+    hcount = 0|(int * inv128);
     // position in horizontal line
-    hblank = int % 32;
+    hblank = int % 128;
     // always sync at the start of a line
-    hblank == 0
+    hblank <= 5
       // longer sync for video frames
-      || (hblank == 1 && 5 <= hcount && hcount < 310)
-      || (hblank == 1 && 317 <= hcount && hcount < 622)
+      || (hblank < 9 && 5 <= hcount && hcount < 310)
+      || (hblank < 9 && 317 <= hcount && hcount < 622)
       // vsync
-      || ((hcount < 315 && (hcount < 2 || hcount > 312) ) && hblank != 15 && hblank != 31)
-      || (hcount == 2 && hblank < 15)
-      || (hcount == 312 && hblank > 15 && hblank != 31) ? out_unf = -1 : out_unf = -0.7;
+      // first two sync lines of both fields
+      || ((hcount < 315 && (hcount < 2 || hcount > 312) ) && ((hblank <= 64 && hblank < 124) || hblank < 60))
+      // third sync line
+      || (hcount == 2 && hblank < 60)
+      // 313 sync line
+      || (hcount == 312 && hblank <= 64 && hblank < 124) ? out_unf = -1 : out_unf = -0.35;
   );
   // calculate graphics, when in the right place
   // first field (305 out of 312 lines)
-  5 <= hcount && hcount < 310 && (3 <= hblank && hblank < 31) ? (
-    hpos = (wrapped + (hblank - 3)) * invhpos - 0.5;
+  5 <= hcount && hcount < 310 && (26 <= hblank && hblank < 127) ? (
+    hpos = (wrapped + (hblank - 4)) * invhpos - 0.5;
     vpos = (hcount - 5.5) * inv305 - 0.5;
-    out_unf = 0.2 + display();
+    out_unf = 0.2 + 0.4 * display();
   );
   // second field (305 out of 313 lines)
-  317 <= hcount && hcount < 622 && (3 <= hblank && hblank < 31) ? (
-    hpos = (wrapped + (hblank - 3)) * invhpos - 0.5;
+  317 <= hcount && hcount < 622 && (26 <= hblank && hblank < 127) ? (
+    hpos = (wrapped + (hblank - 4)) * invhpos - 0.5;
     vpos = (hcount - 316.5) * inv305 - 0.5;
-    out_unf = 0.2 + display();
+    out_unf = -0.7 + 0.4 * display();
   );
   //avg += out_unf;
   sum  += out_unf*0.5 - quant;
