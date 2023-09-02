@@ -1,0 +1,162 @@
+desc:DSD128TV
+
+out_pin:left output0
+out_pin:left output1
+out_pin:right output0
+out_pin:right output1
+
+slider1:delta=0.6<0.25,0.99,0.0001>delta
+slider2:amp=1<0,1,0.001>Amplitude (unity)
+slider3:0.3<0,1,0.0001>Brightness
+slider4:0.3<0,1,0.0001>Contrast
+slider5:-0.7<-0.9,-0.25,0.001>Sync level
+slider6:0<0,9,1>Pattern
+
+//import elliptic-lp.jsfx-inc
+
+@init
+marker  = 0x060000;
+mult = 2^23;
+invmult = 2^-23;
+toggle = 1;
+commonSrate = 176400*32;
+desiredSrate = 2000000;
+invdesired = 1/desiredSrate;
+upsampling = commonSrate / srate; // ensure that this value is integer 
+downsampling = commonSrate / desiredSrate; // this really ought to be close to an integer, but we can deal with it
+invdown = desiredSrate / commonSrate;
+invup = srate / commonSrate;
+
+samplesPerDoubleFrame = commonSrate / 25;
+invsamplesPerDoubleFrame = 25 / commonSrate;
+samplesPerFrame = samplesPerDoubleFrame * 0.5;
+invsamplesPerFrame = 1 / samplesPerFrame;
+
+// graphics specific definitions/constants
+pimult = $pi*4;
+togglefreq = 2*$pi/srate*0.25;
+
+// other constants (performance matters here!)
+inv305 = 1/305;
+invhpos = 1 / (128-6);
+inv128 = 1/128;
+
+// syncing fractions
+hs = 470/6400;
+fp = 1200/6400;
+bp = 6235/6400;
+
+
+hm = 1/(bp-fp);
+
+s1 = 23/640;
+s2 = 273/640;
+s3 = 320/640;
+s4 = 343/640;
+s5 = 593/640;
+
+// actual function to display graphics for each rendered sample in each line
+// output is typically between -1 and 1
+function display() (
+  slider6 == 1 ? cos(pimult*(sqrt((hpos*hpos + vpos*vpos))))
+  : slider6 == 2 ? cos(pimult*(sqrt((hpos*hpos + vpos*vpos))+togglefreq*c))
+  : slider6 == 3 ? sin(pimult*hpos) * sin(pimult*vpos)
+  : slider6 == 4 ? toggle * sin(pimult*hpos) * sin(pimult*vpos)
+  : slider6 == 5 ? sin(pimult*(hpos+toggle)) * sin(pimult*(vpos+toggle))
+  : slider6 == 6 ? sin(pimult*hpos*toggle) * sin(pimult*vpos*toggle)
+  : slider6 == 7 ? toggle
+  : 0;
+);
+
+// run this for every DSD sample
+function upsampled_code()
+(
+  // wrapped position in frames
+  position = (position + 1) % samplesPerDoubleFrame;
+  position == 0 ? (toggle = sin(togglefreq*c););
+  fraction = position * 625 * invsamplesPerDoubleFrame;
+  lineNo = fraction|0;
+  lineFrac = fraction-lineNo;
+  // horizontal sync at the start of a line
+  lineFrac <= s1
+  // middle of line for non video frames
+  || (s3 < lineFrac && lineFrac < s4 && 
+    ((309 < lineNo && lineNo < 317) || lineNo < 5 || lineNo > 621)
+  )
+  // longer sync for video frames
+  || (lineFrac < hs && 4 < lineNo && lineNo < 310)
+  || (lineFrac < hs && 316 < lineNo && lineNo < 622)
+  // vsync
+  // lines of both fields with a double pulse
+  || (
+    (lineNo < 315 && (lineNo < 2 || lineNo > 312))
+    && ((s3 < lineFrac && lineFrac < s5) || lineFrac < s2)
+  )
+  // third sync line
+  || (lineNo == 2 && lineFrac < s2)
+  // 313 sync line
+  || (lineNo == 312 && s3 < lineFrac && lineFrac < s5)
+  ? raw_out = slider5 : raw_out = 0;
+
+  // calculate graphics, when in the right place
+  // first field (of 312 lines)
+  22 <= lineNo && lineNo < 310 && (fp <= lineFrac && lineFrac < bp) ? (
+    hpos = (lineFrac - fp) * hm - 0.5;
+    m = max(hpos, m);
+    vpos = (lineNo - 23) * inv305 - 0.5;
+    raw_out = min(0.69, max(0.01, bright + cont * display()));
+  );
+  // second field (of 313 lines)
+  334 <= lineNo && lineNo < 622 && (fp <= lineFrac && lineFrac < bp) ? (
+    hpos = (lineFrac - fp) * hm - 0.5;
+    vpos = (lineNo - 336) * inv305 - 0.5;
+    raw_out = min(0.69, max(0.01, bright + cont * display()));
+  );
+  sum += raw_out*amp - quant;
+  out = omdelta*sum + delta*out;
+  ret = out > 0;
+  quant = 2*ret-1;
+);
+
+@slider
+omdelta = 1-delta;
+bright = 0.5*slider3;
+cont = 0.5*slider4;
+
+@sample
+
+// upsample to DSD128 frequency
+total1 = 0;
+loop(16,
+  // generate a bit
+  upsampled_code();
+  // accumulate bit in total (MSB should be oldest bit)
+  total1 *= 2;
+  total1 += ret;
+);
+total2 = 0;
+loop(16,
+  // generate a bit
+  upsampled_code();
+  // accumulate bit in total (MSB should be oldest bit)
+  total2 *= 2;
+  total2 += ret;
+);
+
+// toggle markers (for DSD128) (8 MSB of 24 bits) between 06 and F9, like in https://dsd-guide.com/sites/default/files/white-papers/DoP_openStandard_1v1.pdf
+marker != 0x060000 ? marker = 0x060000 : marker = 0xF90000;
+
+
+total1 = total1 | marker;
+
+total1&0x800000 ? total1 = -1-(total1~0xffffff);
+
+
+total2 = total2 | marker;
+
+total2&0x800000 ? total2 = -1-(total2~0xffffff);
+
+spl0 = total1 * invmult;
+spl1 = total2 * invmult;
+c += 1;
+
