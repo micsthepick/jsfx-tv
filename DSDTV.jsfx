@@ -7,8 +7,8 @@ out_pin:right output
 
 slider1:delta=0.6<0.25,0.99,0.0001>delta
 slider2:amp=1<0,1,0.001>Amplitude (unity)
-slider3:0.3<0,1,0.0001>Brightness
-slider4:0.3<0,1,0.0001>Contrast
+slider3:0.4<0,1,0.0001>Brightness
+slider4:0.4<0,1,0.0001>Contrast
 slider5:-0.7<-0.9,-0.25,0.001>Sync level
 slider6:0<0,9,1>Pattern
 
@@ -35,6 +35,7 @@ invsamplesPerFrame = 1 / samplesPerFrame;
 // graphics specific definitions/constants
 pimult = $pi*4;
 togglefreq = 2*$pi/srate*0.25;
+togglefreq2 = 2*$pi/srate*0.0625;
 
 // other constants (performance matters here!)
 inv305 = 1/305;
@@ -59,7 +60,7 @@ s5 = 593/640;
 // output is typically between -1 and 1
 function display() (
   slider6 == 1 ? cos(pimult*(sqrt((hpos*hpos + vpos*vpos))))
-  : slider6 == 2 ? cos(pimult*(sqrt((hpos*hpos + vpos*vpos))+togglefreq*c))
+  : slider6 == 2 ? cos(pimult*(sqrt((hpos*hpos + vpos*vpos))-togglefreq2*c))
   : slider6 == 3 ? sin(pimult*hpos) * sin(pimult*vpos)
   : slider6 == 4 ? toggle * sin(pimult*hpos) * sin(pimult*vpos)
   : slider6 == 5 ? sin(pimult*(hpos+toggle)) * sin(pimult*(vpos+toggle))
@@ -102,7 +103,6 @@ function upsampled_code()
   // first field (of 312 lines)
   22 <= lineNo && lineNo < 310 && (fp <= lineFrac && lineFrac < bp) ? (
     hpos = (lineFrac - fp) * hm - 0.5;
-    m = max(hpos, m);
     vpos = (lineNo - 23) * inv305 - 0.5;
     raw_out = min(0.69, max(0.01, bright + cont * display()));
   );
