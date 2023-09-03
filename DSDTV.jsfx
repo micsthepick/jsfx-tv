@@ -1,7 +1,5 @@
 desc:DSDTV
 
-in_pin:left input
-in_pin:right input
 out_pin:left output
 out_pin:right output
 
@@ -16,21 +14,13 @@ slider6:0<0,9,1>Pattern
 
 @init
 marker = 0x050000;
-mult = 2^23;
 invmult = 2^-23;
 toggle = 1;
 commonSrate = 176400*16;
-desiredSrate = 2000000;
-invdesired = 1/desiredSrate;
 upsampling = commonSrate / srate; // ensure that this value is integer 
-downsampling = commonSrate / desiredSrate; // this really ought to be close to an integer, but we can deal with it
-invdown = desiredSrate / commonSrate;
-invup = srate / commonSrate;
 
 samplesPerDoubleFrame = commonSrate / 25;
 invsamplesPerDoubleFrame = 25 / commonSrate;
-samplesPerFrame = samplesPerDoubleFrame * 0.5;
-invsamplesPerFrame = 1 / samplesPerFrame;
 
 // graphics specific definitions/constants
 pimult = $pi*4;
@@ -39,8 +29,6 @@ togglefreq2 = 2*$pi/srate*0.0625;
 
 // other constants (performance matters here!)
 inv305 = 1/305;
-invhpos = 1 / (128-6);
-inv128 = 1/128;
 
 // syncing fractions
 hs = 470/6400;
@@ -127,7 +115,6 @@ cont = 0.5*slider4;
 
 // upsample to DSD frequency
 total = 0;
-avg = 0;
 loop(upsampling,
   // generate a bit
   upsampled_code();
